@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -euo pipefail
 
-REPO_URL="${TBOX_REPO_URL:-https://github.com/Xane01/tbox-termux.git}"
+REPO_URL="${TBOX_REPO_URL:-https://github.com/Xane01/t-box-termux.git}"
 INSTALL_DIR="${TBOX_HOME:-$HOME/.local/opt/t-box-termux}"
 BIN_DIR="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"

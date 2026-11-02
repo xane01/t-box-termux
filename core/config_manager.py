@@ -9,7 +9,7 @@ DEFAULTS = {
     "theme": "default",
     "check_updates": False,
     "log_level": "INFO",
-    "repository": "https://github.com/Xane01/tbox-termux"
+    "repository": "https://github.com/Xane01/t-box-termux"
 }
 
 def load_config():

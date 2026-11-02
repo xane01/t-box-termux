@@ -10,12 +10,12 @@ A modular command-line toolkit for Termux. Phase 1 provides the core CLI, guided
 
 ## Install from GitHub
 
-Repository: https://github.com/Xane01/tbox-termux
+Repository: https://github.com/Xane01/t-box-termux
 
 ```bash
 pkg update && pkg upgrade
 pkg install git
-git clone https://github.com/Xane01/tbox-termux.git
+git clone https://github.com/Xane01/t-box-termux.git
 cd t-box-termux
 bash install.sh
 ```
