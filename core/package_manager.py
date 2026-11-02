@@ -202,6 +202,14 @@ def _extract_archive(archive_bytes, target, expected_id, expected_version):
 def install_module(module_id, update=False):
     if not MODULE_ID_RE.fullmatch(module_id):
         raise PackageError("Invalid module ID.")
+    bundled_dir = Path(__file__).resolve().parents[1] / "modules"
+    for manifest_path in bundled_dir.glob("*/manifest.json"):
+        try:
+            bundled = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if isinstance(bundled, dict) and bundled.get("id") == module_id:
+                raise PackageError("Plugin ID conflicts with a bundled T-BOX module.")
+        except (OSError, json.JSONDecodeError):
+            continue
     package = _find_package(module_id)
     version = str(package.get("version", ""))
     if not version:
