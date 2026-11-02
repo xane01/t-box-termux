@@ -61,9 +61,16 @@ def _request(url, limit):
     if parsed.scheme != "https" or not parsed.netloc:
         raise PackageError("Only valid HTTPS URLs are allowed.")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    if parsed.username or parsed.password:
+        raise PackageError("Credentials in repository URLs are not allowed.")
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
+            final_url = urllib.parse.urlparse(response.geturl())
+            if final_url.scheme != "https" or not final_url.netloc:
+                raise PackageError("HTTPS downgrade or invalid redirect rejected.")
             data = response.read(limit + 1)
+    except PackageError:
+        raise
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         raise PackageError("Download failed: {}".format(exc))
     if len(data) > limit:
@@ -237,22 +244,25 @@ def install_module(module_id, update=False):
     _extract_archive(archive, staging, module_id, version)
     if backup.exists():
         shutil.rmtree(backup)
-    if target.exists():
+    had_target = target.exists()
+    if had_target:
         target.rename(backup)
     try:
         staging.rename(target)
+        current[module_id] = {
+            "version": version,
+            "repository": package["_repository"],
+            "enabled": True
+        }
+        _write_json(PLUGINS_FILE, current)
     except Exception:
-        if backup.exists() and not target.exists():
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)
+        if backup.exists():
             backup.rename(target)
         raise
     if backup.exists():
         shutil.rmtree(backup)
-    current[module_id] = {
-        "version": version,
-        "repository": package["_repository"],
-        "enabled": True
-    }
-    _write_json(PLUGINS_FILE, current)
     return package
 
 
@@ -261,10 +271,21 @@ def remove_module(module_id):
     if module_id not in current:
         raise PackageError("Plugin is not installed: " + module_id)
     target = PLUGIN_DIR / module_id
-    if target.exists():
-        shutil.rmtree(target)
+    backup = PLUGIN_DIR / (module_id + ".removing")
+    if backup.exists():
+        shutil.rmtree(backup)
+    had_target = target.exists()
+    if had_target:
+        target.rename(backup)
     del current[module_id]
-    _write_json(PLUGINS_FILE, current)
+    try:
+        _write_json(PLUGINS_FILE, current)
+    except Exception:
+        if backup.exists() and not target.exists():
+            backup.rename(target)
+        raise
+    if backup.exists():
+        shutil.rmtree(backup)
 
 
 def update_modules(module_id=None):
