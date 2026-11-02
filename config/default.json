@@ -1,0 +1,9 @@
+{
+  "app_name": "T-BOX",
+  "version": "0.1.0",
+  "theme": "default",
+  "check_updates": false,
+  "log_level": "INFO",
+  "data_dir": "~/.local/share/tbox",
+  "config_dir": "~/.config/tbox"
+}

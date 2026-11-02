@@ -1,0 +1,9 @@
+{
+  "id": "device-info",
+  "name": "Device Information",
+  "version": "0.1.0",
+  "category": "system",
+  "description": "Show basic Android/Termux runtime information.",
+  "entry": "device_info.py",
+  "dependencies": []
+}

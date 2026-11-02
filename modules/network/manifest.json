@@ -1,0 +1,9 @@
+{
+  "id": "net-doctor",
+  "name": "Network Doctor",
+  "version": "0.1.0",
+  "category": "network",
+  "description": "Basic DNS resolution and HTTPS reachability checks.",
+  "entry": "net_doctor.py",
+  "dependencies": []
+}

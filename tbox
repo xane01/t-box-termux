@@ -1,0 +1,18 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -eu
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TBOX_HOME="${TBOX_HOME:-$SCRIPT_DIR}"
+
+if [ ! -f "$TBOX_HOME/core/router.py" ]; then
+  TBOX_HOME="$HOME/.local/opt/t-box-termux"
+fi
+
+if [ ! -f "$TBOX_HOME/core/router.py" ]; then
+  echo "T-BOX installation not found."
+  echo "Run from the source directory or install T-BOX first."
+  exit 1
+fi
+
+export PYTHONPATH="$TBOX_HOME${PYTHONPATH:+:$PYTHONPATH}"
+exec python "$TBOX_HOME/main.py" "$@"

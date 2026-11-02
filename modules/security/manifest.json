@@ -1,0 +1,9 @@
+{
+  "id": "hash-lab",
+  "name": "Hash Lab",
+  "version": "0.1.0",
+  "category": "security",
+  "description": "Calculate file hashes and verify integrity.",
+  "entry": "hash_lab.py",
+  "dependencies": []
+}
