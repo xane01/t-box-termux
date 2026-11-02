@@ -176,7 +176,9 @@ def interactive_menu():
 def main(argv=None):
     ensure_dirs()
     parser = argparse.ArgumentParser(prog="tbox", description="T-BOX Termux Toolbox")
-    parser.add_argument("--version", action="version", version="T-BOX 0.2.0")
+    version_file = Path(__file__).resolve().parents[1] / "VERSION"
+    version = version_file.read_text(encoding="utf-8").strip() if version_file.exists() else "unknown"
+    parser.add_argument("--version", action="version", version="T-BOX " + version)
     sub = parser.add_subparsers(dest="command")
     sub.add_parser("list", help="List available modules")
     sub.add_parser("info", help="Show T-BOX information")
