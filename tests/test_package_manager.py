@@ -175,7 +175,6 @@ class PackageLifecycleTests(unittest.TestCase):
 
 
     def test_install_rolls_back_when_registry_write_fails(self):
-        old_archive = make_archive(version="1.0.0")
         new_archive = make_archive(version="1.1.0")
         target = self.plugin_dir / "sample-plugin"
         target.mkdir()
@@ -184,8 +183,8 @@ class PackageLifecycleTests(unittest.TestCase):
                                      "enabled": True}}
         self.registry.write_text(json.dumps(initial), encoding="utf-8")
         package = self.package("1.1.0", new_archive)
-        with patch.object(pm, "_find_package", return_value=package), \\
-             patch.object(pm, "_request", return_value=new_archive), \\
+        with patch.object(pm, "_find_package", return_value=package), \
+             patch.object(pm, "_request", return_value=new_archive), \
              patch.object(pm, "_write_json", side_effect=OSError("simulated write failure")):
             with self.assertRaises(OSError):
                 pm.install_module("sample-plugin", update=True)
