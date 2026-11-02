@@ -205,7 +205,7 @@ def main(argv=None):
     search = sub.add_parser("search", help="Search plugin repositories")
     search.add_argument("query", nargs="?")
     for action in ("install", "remove", "plugin-info"):
-        command = sub.add_parser(action, help="{} a plugin".format(action.replace("-", " ").capitalize()))
+        command = sub.add_parser(action, help="Show plugin metadata" if action == "plugin-info" else "{} a plugin".format(action.capitalize()))
         command.add_argument("module_id")
         command.set_defaults(package_action="info" if action == "plugin-info" else action)
     update = sub.add_parser("update", help="Update installed plugins")
