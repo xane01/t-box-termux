@@ -116,6 +116,35 @@ class ArchiveExtractionTests(unittest.TestCase):
                                     "sample-plugin", "1.0.0")
 
 
+
+    def test_rejects_archive_with_too_many_entries(self):
+        payload = make_archive(extra={
+            "extra-{}.txt".format(index): ""
+            for index in range(pm.MAX_ARCHIVE_FILES)
+        })
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(payload, Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
+    def test_rejects_invalid_zip_payload(self):
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(b"this is not a zip", Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
+    def test_rejects_encrypted_zip_entry(self):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            info = zipfile.ZipInfo("manifest.json")
+            info.flag_bits |= 0x1
+            archive.writestr(info, "{}")
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(buffer.getvalue(), Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
+
 class PackageLifecycleTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
