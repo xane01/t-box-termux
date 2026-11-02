@@ -173,5 +173,62 @@ class PackageLifecycleTests(unittest.TestCase):
         self.assertEqual(pm.installed_plugins(), {})
 
 
+
+    def test_install_rolls_back_when_registry_write_fails(self):
+        old_archive = make_archive(version="1.0.0")
+        new_archive = make_archive(version="1.1.0")
+        target = self.plugin_dir / "sample-plugin"
+        target.mkdir()
+        (target / "main.py").write_text("OLD VERSION", encoding="utf-8")
+        initial = {"sample-plugin": {"version": "1.0.0", "repository": "test",
+                                     "enabled": True}}
+        self.registry.write_text(json.dumps(initial), encoding="utf-8")
+        package = self.package("1.1.0", new_archive)
+        with patch.object(pm, "_find_package", return_value=package), \\
+             patch.object(pm, "_request", return_value=new_archive), \\
+             patch.object(pm, "_write_json", side_effect=OSError("simulated write failure")):
+            with self.assertRaises(OSError):
+                pm.install_module("sample-plugin", update=True)
+        self.assertEqual((target / "main.py").read_text(encoding="utf-8"), "OLD VERSION")
+        self.assertFalse((self.plugin_dir / "sample-plugin.backup").exists())
+
+    def test_remove_rolls_back_when_registry_write_fails(self):
+        target = self.plugin_dir / "sample-plugin"
+        target.mkdir()
+        (target / "main.py").write_text("KEEP ME", encoding="utf-8")
+        initial = {"sample-plugin": {"version": "1.0.0", "repository": "test",
+                                     "enabled": True}}
+        self.registry.write_text(json.dumps(initial), encoding="utf-8")
+        with patch.object(pm, "_write_json", side_effect=OSError("simulated write failure")):
+            with self.assertRaises(OSError):
+                pm.remove_module("sample-plugin")
+        self.assertEqual((target / "main.py").read_text(encoding="utf-8"), "KEEP ME")
+        self.assertEqual(pm.installed_plugins(), initial)
+
+
+class RequestSecurityTests(unittest.TestCase):
+    def test_rejects_https_redirect_to_http(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def geturl(self):
+                return "http://packages.example.test/payload"
+            def read(self, size):
+                return b"payload"
+
+        with patch("core.package_manager.urllib.request.urlopen",
+                   return_value=FakeResponse()):
+            with self.assertRaises(PackageError):
+                pm._request("https://packages.example.test/start", 1024)
+
+    def test_rejects_credentials_in_url(self):
+        with patch("core.package_manager.urllib.request.urlopen") as open_url:
+            with self.assertRaises(PackageError):
+                pm._request("https://user:secret@packages.example.test/index.json", 1024)
+            open_url.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
