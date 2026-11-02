@@ -22,6 +22,7 @@ PLUGINS_FILE = DATA_DIR / "plugins.json"
 PLUGIN_DIR = DATA_DIR / "plugins"
 MAX_ARCHIVE_BYTES = 20 * 1024 * 1024
 MAX_UNPACKED_BYTES = 50 * 1024 * 1024
+MAX_ARCHIVE_FILES = 2000
 MODULE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
 SHA256_RE = re.compile(r"^[a-fA-F0-9]{64}$")
 USER_AGENT = "TBOX-Termux-PackageManager/0.2.0"
@@ -175,18 +176,28 @@ def _extract_archive(archive_bytes, target, expected_id, expected_version):
         archive_path = temp / "plugin.zip"
         archive_path.write_bytes(archive_bytes)
         total = 0
-        with zipfile.ZipFile(archive_path) as archive:
-            for info in archive.infolist():
-                member = PurePosixPath(info.filename)
-                if member.is_absolute() or ".." in member.parts:
-                    raise PackageError("Unsafe path found in plugin archive.")
-                mode = (info.external_attr >> 16) & 0o170000
-                if mode == 0o120000:
-                    raise PackageError("Symbolic links are not allowed in plugin archives.")
-                total += info.file_size
-                if total > MAX_UNPACKED_BYTES:
-                    raise PackageError("Unpacked plugin exceeds the size limit.")
-            archive.extractall(temp / "unpacked")
+        try:
+            with zipfile.ZipFile(archive_path) as archive:
+                infos = archive.infolist()
+                if len(infos) > MAX_ARCHIVE_FILES:
+                    raise PackageError("Plugin archive contains too many files.")
+                for info in infos:
+                    member = PurePosixPath(info.filename)
+                    if member.is_absolute() or ".." in member.parts:
+                        raise PackageError("Unsafe path found in plugin archive.")
+                    if info.flag_bits & 0x1:
+                        raise PackageError("Encrypted plugin archives are not supported.")
+                    mode = (info.external_attr >> 16) & 0o170000
+                    if mode == 0o120000:
+                        raise PackageError("Symbolic links are not allowed in plugin archives.")
+                    total += info.file_size
+                    if total > MAX_UNPACKED_BYTES:
+                        raise PackageError("Unpacked plugin exceeds the size limit.")
+                archive.extractall(temp / "unpacked")
+        except zipfile.BadZipFile:
+            raise PackageError("Plugin archive is not a valid ZIP file.")
+        except (RuntimeError, NotImplementedError) as exc:
+            raise PackageError("Plugin archive could not be extracted: {}".format(exc))
         root = temp / "unpacked"
         candidates = [root]
         candidates.extend(path for path in root.iterdir() if path.is_dir())
