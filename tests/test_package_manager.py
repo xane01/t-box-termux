@@ -147,7 +147,7 @@ class PackageLifecycleTests(unittest.TestCase):
         second = make_archive(version="1.1.0")
         with patch.object(pm, "_find_package",
                           side_effect=[self.package("1.0.0", first),
-                                       self.package("1.1.0", second)]), \\
+                                       self.package("1.1.0", second)]), \
              patch.object(pm, "_request", side_effect=[first, second]):
             pm.install_module("sample-plugin")
             self.assertEqual(pm.installed_plugins()["sample-plugin"]["version"], "1.0.0")
@@ -165,7 +165,7 @@ class PackageLifecycleTests(unittest.TestCase):
         archive = make_archive()
         package = self.package("1.0.0", archive)
         package["sha256"] = "0" * 64
-        with patch.object(pm, "_find_package", return_value=package), \\
+        with patch.object(pm, "_find_package", return_value=package), \
              patch.object(pm, "_request", return_value=archive):
             with self.assertRaises(PackageError):
                 pm.install_module("sample-plugin")
