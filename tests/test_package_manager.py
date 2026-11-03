@@ -258,10 +258,6 @@ class RequestSecurityTests(unittest.TestCase):
             open_url.assert_not_called()
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class PluginInfoTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -315,3 +311,7 @@ class PluginInfoTests(unittest.TestCase):
         }), encoding="utf-8")
         with self.assertRaisesRegex(PackageError, "metadata is missing or invalid"):
             pm.plugin_info("sample-plugin")
+
+
+if __name__ == "__main__":
+    unittest.main()
