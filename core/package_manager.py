@@ -67,8 +67,9 @@ def _request(url, limit):
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             final_url = urllib.parse.urlparse(response.geturl())
-            if final_url.scheme != "https" or not final_url.netloc:
-                raise PackageError("HTTPS downgrade or invalid redirect rejected.")
+            if (final_url.scheme != "https" or not final_url.netloc
+                    or final_url.username or final_url.password):
+                raise PackageError("HTTPS downgrade or unsafe redirect rejected.")
             data = response.read(limit + 1)
     except PackageError:
         raise
@@ -208,18 +209,35 @@ def _extract_archive(archive_bytes, target, expected_id, expected_version):
                 infos = archive.infolist()
                 if len(infos) > MAX_ARCHIVE_FILES:
                     raise PackageError("Plugin archive contains too many files.")
+                seen = set()
+                file_paths = set()
                 for info in infos:
-                    member = PurePosixPath(info.filename)
-                    if member.is_absolute() or ".." in member.parts:
+                    name = info.filename
+                    if not isinstance(name, str) or not name or "\x00" in name or "\\" in name:
                         raise PackageError("Unsafe path found in plugin archive.")
+                    member = PurePosixPath(name)
+                    if (member.is_absolute() or ".." in member.parts
+                            or re.match(r"^[a-zA-Z]:", name)):
+                        raise PackageError("Unsafe path found in plugin archive.")
+                    normalized = member.as_posix().rstrip("/").casefold()
+                    if not normalized or normalized in seen:
+                        raise PackageError("Duplicate or ambiguous path in plugin archive.")
+                    seen.add(normalized)
+                    mode = (info.external_attr >> 16) & 0o170000
+                    if mode not in (0, 0o100000, 0o040000):
+                        raise PackageError("Unsupported special file in plugin archive.")
                     if info.flag_bits & 0x1:
                         raise PackageError("Encrypted plugin archives are not supported.")
-                    mode = (info.external_attr >> 16) & 0o170000
-                    if mode == 0o120000:
-                        raise PackageError("Symbolic links are not allowed in plugin archives.")
+                    if not info.is_dir():
+                        file_paths.add(normalized)
                     total += info.file_size
                     if total > MAX_UNPACKED_BYTES:
                         raise PackageError("Unpacked plugin exceeds the size limit.")
+                for path in file_paths:
+                    parts = path.split("/")
+                    if any("/".join(parts[:i]) in file_paths
+                           for i in range(1, len(parts))):
+                        raise PackageError("File/directory path collision in plugin archive.")
                 archive.extractall(temp / "unpacked")
         except zipfile.BadZipFile:
             raise PackageError("Plugin archive is not a valid ZIP file.")
@@ -305,6 +323,8 @@ def install_module(module_id, update=False):
 
 
 def remove_module(module_id):
+    if not isinstance(module_id, str) or not MODULE_ID_RE.fullmatch(module_id):
+        raise PackageError("Invalid module ID.")
     current = installed_plugins()
     if module_id not in current:
         raise PackageError("Plugin is not installed: " + module_id)
