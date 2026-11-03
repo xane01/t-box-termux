@@ -238,7 +238,9 @@ def _extract_archive(archive_bytes, target, expected_id, expected_version):
                     if any("/".join(parts[:i]) in file_paths
                            for i in range(1, len(parts))):
                         raise PackageError("File/directory path collision in plugin archive.")
-                archive.extractall(temp / "unpacked")
+                unpacked_root = temp / "unpacked"
+                unpacked_root.mkdir(parents=True, exist_ok=True)
+                archive.extractall(unpacked_root)
         except zipfile.BadZipFile:
             raise PackageError("Plugin archive is not a valid ZIP file.")
         except (RuntimeError, NotImplementedError) as exc:
