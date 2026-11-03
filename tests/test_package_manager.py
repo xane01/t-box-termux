@@ -260,3 +260,58 @@ class RequestSecurityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PluginInfoTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.plugin_dir = self.root / "plugins"
+        self.plugin_dir.mkdir()
+        self.registry = self.root / "plugins.json"
+        self.addCleanup(self.temp.cleanup)
+        self.patches = [
+            patch.object(pm, "PLUGIN_DIR", self.plugin_dir),
+            patch.object(pm, "PLUGINS_FILE", self.registry),
+        ]
+        for item in self.patches:
+            item.start()
+            self.addCleanup(item.stop)
+
+    def test_returns_metadata_for_installed_plugin(self):
+        folder = self.plugin_dir / "sample-plugin"
+        folder.mkdir()
+        (folder / "manifest.json").write_text(json.dumps({
+            "id": "sample-plugin",
+            "name": "Sample Plugin",
+            "version": "1.2.0",
+            "category": "developer",
+            "description": "A test plugin",
+            "entry": "main.py"
+        }), encoding="utf-8")
+        self.registry.write_text(json.dumps({
+            "sample-plugin": {
+                "version": "1.2.0",
+                "repository": "test-repo",
+                "enabled": True
+            }
+        }), encoding="utf-8")
+
+        info = pm.plugin_info("sample-plugin")
+
+        self.assertEqual(info["id"], "sample-plugin")
+        self.assertEqual(info["name"], "Sample Plugin")
+        self.assertEqual(info["version"], "1.2.0")
+        self.assertEqual(info["repository"], "test-repo")
+        self.assertTrue(info["enabled"])
+
+    def test_rejects_uninstalled_plugin(self):
+        with self.assertRaisesRegex(PackageError, "Plugin is not installed"):
+            pm.plugin_info("sample-plugin")
+
+    def test_rejects_missing_installed_manifest(self):
+        self.registry.write_text(json.dumps({
+            "sample-plugin": {"version": "1.0.0", "repository": "test"}
+        }), encoding="utf-8")
+        with self.assertRaisesRegex(PackageError, "metadata is missing or invalid"):
+            pm.plugin_info("sample-plugin")
