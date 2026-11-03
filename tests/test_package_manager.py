@@ -99,6 +99,34 @@ class ArchiveExtractionTests(unittest.TestCase):
             self.assertFalse((Path(temp) / "escaped.txt").exists())
             self.assertFalse(target.exists())
 
+    def test_rejects_backslash_path(self):
+        payload = make_archive(extra={"..\\\\escaped.txt": "not allowed"})
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(payload, Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
+    def test_rejects_windows_drive_path(self):
+        payload = make_archive(extra={"C:/escaped.txt": "not allowed"})
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(payload, Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
+    def test_rejects_duplicate_archive_paths(self):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("manifest.json", json.dumps({
+                "id": "sample-plugin", "version": "1.0.0",
+                "entry": "main.py", "dependencies": []
+            }))
+            archive.writestr("main.py", "print('first')")
+            archive.writestr("main.py", "print('second')")
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaises(PackageError):
+                pm._extract_archive(buffer.getvalue(), Path(temp) / "stage",
+                                    "sample-plugin", "1.0.0")
+
     def test_rejects_symbolic_link(self):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
@@ -170,6 +198,14 @@ class PackageLifecycleTests(unittest.TestCase):
             "sha256": hashlib.sha256(archive).hexdigest(),
             "_repository": "test"
         }
+
+    def test_remove_rejects_path_like_module_id(self):
+        outside = self.root / "important"
+        outside.mkdir()
+        (outside / "keep.txt").write_text("KEEP", encoding="utf-8")
+        with self.assertRaises(PackageError):
+            pm.remove_module("../important")
+        self.assertEqual((outside / "keep.txt").read_text(encoding="utf-8"), "KEEP")
 
     def test_install_update_and_remove(self):
         first = make_archive(version="1.0.0")
