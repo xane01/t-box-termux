@@ -90,7 +90,6 @@ def add_repository(name, index_url):
     parsed = urllib.parse.urlparse(index_url)
     if parsed.scheme != "https" or not parsed.netloc:
         raise PackageError("Repository index must use HTTPS.")
-    # Verify the index before saving the source.
     index = json.loads(_request(index_url, 1024 * 1024).decode("utf-8"))
     if not isinstance(index, dict) or not isinstance(index.get("modules"), list):
         raise PackageError("Invalid repository index: expected a modules array.")
@@ -145,6 +144,34 @@ def _find_package(module_id):
 def installed_plugins():
     value = _read_json(PLUGINS_FILE, {})
     return value if isinstance(value, dict) else {}
+
+
+def plugin_info(module_id):
+    """Return metadata for a plugin that is currently installed."""
+    if not MODULE_ID_RE.fullmatch(module_id):
+        raise PackageError("Invalid module ID.")
+    installed = installed_plugins()
+    record = installed.get(module_id)
+    if not isinstance(record, dict):
+        raise PackageError("Plugin is not installed: " + module_id)
+
+    manifest_path = PLUGIN_DIR / module_id / "manifest.json"
+    manifest = _read_json(manifest_path, None)
+    if not isinstance(manifest, dict) or manifest.get("id") != module_id:
+        raise PackageError(
+            "Installed plugin metadata is missing or invalid: " + module_id
+        )
+
+    fields = ("name", "version", "category", "description", "entry")
+    result = {"id": module_id}
+    for field in fields:
+        value = manifest.get(field)
+        if value is not None:
+            result[field] = value
+    result["version"] = record.get("version", result.get("version", "unknown"))
+    result["repository"] = record.get("repository", "unknown")
+    result["enabled"] = bool(record.get("enabled", True))
+    return result
 
 
 def _validate_manifest(folder, expected_id, expected_version):
@@ -285,8 +312,7 @@ def remove_module(module_id):
     backup = PLUGIN_DIR / (module_id + ".removing")
     if backup.exists():
         shutil.rmtree(backup)
-    had_target = target.exists()
-    if had_target:
+    if target.exists():
         target.rename(backup)
     del current[module_id]
     try:

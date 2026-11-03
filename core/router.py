@@ -13,10 +13,10 @@ from . import package_manager as pm
 
 BANNER = r"""
  _____        ____   ____  __
-|_   _|      | __ ) / ___| \ \
-  | |   _____|  _ \| |      \ \
+|_   _|      | __ ) / ___|  \
+  | |   _____|  _ \\| |      \\ \\
   | |  |_____| |_) | |___   / /
-  |_|        |____/ \____| /_/
+  |_|        |____/ \\____| /_/
         TERMUX TOOLBOX
 """
 
@@ -136,9 +136,8 @@ def cmd_package(args):
             if not updated:
                 print("No installed plugins to update.")
         elif args.package_action == "info":
-            item = pm._find_package(args.module_id)
-            print(json.dumps({key: value for key, value in item.items()
-                              if not key.startswith("_")}, indent=2, ensure_ascii=False))
+            item = pm.plugin_info(args.module_id)
+            print(json.dumps(item, indent=2, ensure_ascii=False))
         return 0
     except pm.PackageError as exc:
         print("Package manager:", exc)
@@ -205,7 +204,7 @@ def main(argv=None):
     search = sub.add_parser("search", help="Search plugin repositories")
     search.add_argument("query", nargs="?")
     for action in ("install", "remove", "plugin-info"):
-        command = sub.add_parser(action, help="Show plugin metadata" if action == "plugin-info" else "{} a plugin".format(action.capitalize()))
+        command = sub.add_parser(action, help="Show installed plugin metadata" if action == "plugin-info" else "{} a plugin".format(action.capitalize()))
         command.add_argument("module_id")
         command.set_defaults(package_action="info" if action == "plugin-info" else action)
     update = sub.add_parser("update", help="Update installed plugins")
@@ -222,5 +221,6 @@ def main(argv=None):
     if args.command == "run": return cmd_run(args)
     if args.command == "config": return cmd_config(args)
     if args.command == "repo": return cmd_repo(args)
-    if args.command in ("search", "install", "remove", "update"): return cmd_package(args)
+    if args.command in ("search", "install", "remove", "update", "plugin-info"):
+        return cmd_package(args)
     return 0
